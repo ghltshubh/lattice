@@ -4,21 +4,18 @@
  */
 
 import type { Availability, EngineId, ExtractionEngine } from "../core/types";
-import { DemoEngine } from "./demo";
 import { PromptApiEngine } from "./prompt-api";
 
 export function createEngine(id: EngineId): ExtractionEngine {
   switch (id) {
     case "prompt-api":
       return new PromptApiEngine();
-    case "demo":
-      return new DemoEngine();
     case "webllm":
       throw new Error("WebLLM engine lands at milestone M5");
   }
 }
 
-export const SELECTABLE_ENGINES: EngineId[] = ["prompt-api", "demo"];
+export const SELECTABLE_ENGINES: EngineId[] = ["prompt-api"];
 
 export async function checkAvailability(): Promise<Record<string, Availability>> {
   const out: Record<string, Availability> = {};

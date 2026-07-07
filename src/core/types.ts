@@ -79,7 +79,7 @@ export interface KnowledgeGraph {
 }
 
 // ---------- Engine abstraction (§8) ----------
-export type EngineId = "prompt-api" | "webllm" | "demo";
+export type EngineId = "prompt-api" | "webllm";
 
 export type Availability = "ready" | "downloadable" | "unavailable";
 

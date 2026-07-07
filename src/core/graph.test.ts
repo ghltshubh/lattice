@@ -4,7 +4,7 @@ import type { GraphMeta, Proposition } from "./types";
 
 const META: GraphMeta = {
   createdAt: "2026-01-01T00:00:00.000Z",
-  engine: "demo",
+  engine: "prompt-api",
   model: "test",
   chunkCount: 2,
   tokenEstimate: 100,

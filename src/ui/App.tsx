@@ -12,12 +12,11 @@ import { runPipeline } from "../core/pipeline";
 import { estimateTokens, TOKEN_GUARDRAIL } from "../core/tokens";
 import type { Availability, EngineId, GraphEdge, KnowledgeGraph } from "../core/types";
 import { checkAvailability, createEngine, SELECTABLE_ENGINES } from "../engines";
-import { SAMPLE_TEXT } from "../engines/demo";
 import { GraphView, type Selection } from "./GraphView";
+import { SAMPLE_TEXT } from "./sample";
 
 const ENGINE_LABEL: Record<string, string> = {
   "prompt-api": "Gemini Nano (built-in)",
-  demo: "Demo (canned output)",
 };
 
 const EXPORT_FORMATS: { id: ExportFormat; label: string }[] = [
@@ -31,7 +30,7 @@ const EXPORT_FORMATS: { id: ExportFormat; label: string }[] = [
 export default function App() {
   const [text, setText] = useState("");
   const [title, setTitle] = useState("");
-  const [engineId, setEngineId] = useState<EngineId>("demo");
+  const [engineId, setEngineId] = useState<EngineId>("prompt-api");
   const [availability, setAvailability] = useState<Record<string, Availability>>({});
   const [status, setStatus] = useState("");
   const [running, setRunning] = useState(false);
@@ -51,14 +50,11 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    checkAvailability().then((a) => {
-      setAvailability(a);
-      if (a["prompt-api"] === "ready" || a["prompt-api"] === "downloadable") {
-        setEngineId("prompt-api");
-      }
-    });
+    checkAvailability().then(setAvailability);
     refreshSaved();
   }, [refreshSaved]);
+
+  const engineUsable = availability[engineId] !== "unavailable";
 
   async function runText(body: string, force: boolean) {
     setError(null);
@@ -193,10 +189,18 @@ export default function App() {
             type="button"
             className="primary"
             onClick={() => runText(text, false)}
-            disabled={running}
+            disabled={running || !engineUsable}
           >
             {running ? "Running…" : "Build graph"}
           </button>
+
+          {!engineUsable && (
+            <div className="banner warn">
+              No extraction engine is available in this browser. Gemini Nano needs desktop
+              Chrome with built-in AI (Chrome 138+ on capable hardware). A
+              download-once WebLLM engine for other browsers is planned (M5).
+            </div>
+          )}
 
           {guardrail !== null && (
             <div className="banner warn">

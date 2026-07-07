@@ -19,7 +19,7 @@ bun is the package manager — not npm, despite what BUILD_PLAN.md implies.
 ## Architecture
 
 - `src/core/` — framework-agnostic pure-TS pipeline (chunk → extract → resolve → assemble → score → persist/export). No React imports here.
-- `src/engines/` — `ExtractionEngine` implementations (Prompt API, demo; WebLLM lands at M5). The UI and pipeline depend only on the interface in `src/core/types.ts`; never hardwire a specific engine.
+- `src/engines/` — `ExtractionEngine` implementations (Prompt API today; WebLLM lands at M5). The UI and pipeline depend only on the interface in `src/core/types.ts`; never hardwire a specific engine.
 - `src/ui/` — React components. Vite + React 19, Sigma.js for rendering.
 
 Milestone state: M0–M4 done plus persistence/export (M6). Remaining: M5 (WebLLM opt-in engine), M6 PNG/SVG canvas export.

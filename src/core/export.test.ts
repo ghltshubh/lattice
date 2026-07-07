@@ -44,7 +44,7 @@ const GRAPH: ExportableGraph = {
   meta: {
     title: "test graph",
     createdAt: "2026-01-01T00:00:00.000Z",
-    engine: "demo",
+    engine: "prompt-api",
     model: "test",
     chunkCount: 1,
     tokenEstimate: 50,
