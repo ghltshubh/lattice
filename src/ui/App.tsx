@@ -254,20 +254,22 @@ export default function App() {
   return (
     <div className="app">
       <header>
-        <svg className="logo" width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
-          <g stroke="#333a49" strokeWidth="1.4">
-            <line x1="11" y1="11" x2="4" y2="5" />
-            <line x1="11" y1="11" x2="18" y2="4" />
-            <line x1="11" y1="11" x2="17" y2="17" />
-            <line x1="11" y1="11" x2="5" y2="18" />
-          </g>
-          <circle cx="11" cy="11" r="3.2" fill="#3987e5" />
-          <circle cx="4" cy="5" r="2.2" fill="#e66767" />
-          <circle cx="18" cy="4" r="2.2" fill="#199e70" />
-          <circle cx="17" cy="17" r="2.2" fill="#9085e9" />
-          <circle cx="5" cy="18" r="2.2" fill="#c98500" />
-        </svg>
-        <h1>Lattice</h1>
+        <a className="brand" href="./" title="Lattice — reload">
+          <svg className="logo" width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+            <g stroke="#333a49" strokeWidth="1.4">
+              <line x1="11" y1="11" x2="4" y2="5" />
+              <line x1="11" y1="11" x2="18" y2="4" />
+              <line x1="11" y1="11" x2="17" y2="17" />
+              <line x1="11" y1="11" x2="5" y2="18" />
+            </g>
+            <circle cx="11" cy="11" r="3.2" fill="#3987e5" />
+            <circle cx="4" cy="5" r="2.2" fill="#e66767" />
+            <circle cx="18" cy="4" r="2.2" fill="#199e70" />
+            <circle cx="17" cy="17" r="2.2" fill="#9085e9" />
+            <circle cx="5" cy="18" r="2.2" fill="#c98500" />
+          </svg>
+          <h1>Lattice</h1>
+        </a>
         <span className="tagline">
           documents → propositions → knowledge graph, on-device by default
         </span>
