@@ -147,8 +147,12 @@ export default function App() {
     });
     try {
       setStatus("Preparing engine…");
+      // Nano is downloaded once by Chrome itself; WebLLM weights sit in browser
+      // storage after the consented download. Only a genuinely absent model downloads.
+      const onDevice =
+        activeEngine === "webllm" ? modelCached === true : availability[activeEngine] === "ready";
       await engine.init((p) =>
-        setStatus(`${modelCached ? "Loading" : "Downloading"} model… ${Math.round(p * 100)}%`),
+        setStatus(`${onDevice ? "Loading" : "Downloading"} model… ${Math.round(p * 100)}%`),
       );
       if (activeEngine === "webllm") setModelCached(true);
       const result = await runPipeline(body, engine, {
