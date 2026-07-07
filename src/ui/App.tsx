@@ -196,9 +196,9 @@ export default function App() {
 
           {!engineUsable && (
             <div className="banner warn">
-              No extraction engine is available in this browser. Gemini Nano needs desktop
-              Chrome with built-in AI (Chrome 138+ on capable hardware). A
-              download-once WebLLM engine for other browsers is planned (M5).
+              No extraction engine is available in this browser. Gemini Nano needs desktop Chrome
+              with built-in AI (Chrome 138+ on capable hardware). A download-once WebLLM engine for
+              other browsers is planned (M5).
             </div>
           )}
 
