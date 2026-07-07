@@ -306,6 +306,66 @@ export default function App() {
               <input type="file" accept=".pdf,.docx,.txt,.md" onChange={onUpload} hidden />
             </label>
           </div>
+
+          <button
+            type="button"
+            className="primary"
+            onClick={() => runText(text, false)}
+            disabled={running || !engineUsable}
+          >
+            {running ? "Running…" : "Build graph"}
+          </button>
+
+          {needsConsent && (
+            <div className="banner warn">
+              <strong>One-time model download.</strong> {webllmChoice.label} is ~
+              {webllmChoice.sizeGB} GB of browser storage
+              {freeGB !== null ? ` (you have ~${freeGB.toFixed(1)} GB free)` : ""} and needs a GPU
+              with ~{webllmChoice.vramGB} GB of memory while running. It stays cached — future runs
+              start instantly, and nothing ever leaves your device.
+              {freeGB !== null && freeGB < webllmChoice.sizeGB * 1.5 && (
+                <div>⚠ Storage is tight — consider a smaller model.</div>
+              )}
+              <div className="row">
+                <button type="button" onClick={() => runText(text, false, true)}>
+                  Download ~{webllmChoice.sizeGB} GB &amp; build
+                </button>
+                <button type="button" onClick={() => setNeedsConsent(false)}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {guardrail !== null && (
+            <div className="banner warn">
+              ~{guardrail.toLocaleString()} tokens — past the ~{TOKEN_GUARDRAIL.toLocaleString()}
+              -token (~10 page) guardrail. Long inputs are slower and noisier.
+              <div className="row">
+                <button type="button" onClick={() => runText(text, true)}>
+                  Proceed anyway
+                </button>
+                <button type="button" onClick={truncateAndRun}>
+                  Truncate &amp; run
+                </button>
+              </div>
+            </div>
+          )}
+          {error && <div className="banner error">{error}</div>}
+          {status && <div className="status">{status}</div>}
+          {progress && (
+            <progress value={progress.done} max={progress.total}>
+              {progress.done}/{progress.total}
+            </progress>
+          )}
+          {dropped.length > 0 && (
+            <div className="banner warn">
+              Dropped {dropped.length} chunk{dropped.length === 1 ? "" : "s"} after repeated invalid
+              model output: {dropped.join(", ")}
+            </div>
+          )}
+
+          <hr />
           <span className="section-label">Mode</span>
           <div className="mode-toggle">
             <button
@@ -415,69 +475,10 @@ export default function App() {
             </>
           )}
 
-          <button
-            type="button"
-            className="primary"
-            onClick={() => runText(text, false)}
-            disabled={running || !engineUsable}
-          >
-            {running ? "Running…" : "Build graph"}
-          </button>
-
-          {needsConsent && (
-            <div className="banner warn">
-              <strong>One-time model download.</strong> {webllmChoice.label} is ~
-              {webllmChoice.sizeGB} GB of browser storage
-              {freeGB !== null ? ` (you have ~${freeGB.toFixed(1)} GB free)` : ""} and needs a GPU
-              with ~{webllmChoice.vramGB} GB of memory while running. It stays cached — future runs
-              start instantly, and nothing ever leaves your device.
-              {freeGB !== null && freeGB < webllmChoice.sizeGB * 1.5 && (
-                <div>⚠ Storage is tight — consider a smaller model.</div>
-              )}
-              <div className="row">
-                <button type="button" onClick={() => runText(text, false, true)}>
-                  Download ~{webllmChoice.sizeGB} GB &amp; build
-                </button>
-                <button type="button" onClick={() => setNeedsConsent(false)}>
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
-
           {!engineUsable && mode === "private" && (
             <div className="banner warn">
               No on-device engine is available: Gemini Nano needs desktop Chrome 138+ with built-in
-              AI, and WebLLM needs a WebGPU-capable browser. The cloud mode (M7) will cover this
-              case.
-            </div>
-          )}
-
-          {guardrail !== null && (
-            <div className="banner warn">
-              ~{guardrail.toLocaleString()} tokens — past the ~{TOKEN_GUARDRAIL.toLocaleString()}
-              -token (~10 page) guardrail. Long inputs are slower and noisier.
-              <div className="row">
-                <button type="button" onClick={() => runText(text, true)}>
-                  Proceed anyway
-                </button>
-                <button type="button" onClick={truncateAndRun}>
-                  Truncate &amp; run
-                </button>
-              </div>
-            </div>
-          )}
-          {error && <div className="banner error">{error}</div>}
-          {status && <div className="status">{status}</div>}
-          {progress && (
-            <progress value={progress.done} max={progress.total}>
-              {progress.done}/{progress.total}
-            </progress>
-          )}
-          {dropped.length > 0 && (
-            <div className="banner warn">
-              Dropped {dropped.length} chunk{dropped.length === 1 ? "" : "s"} after repeated invalid
-              model output: {dropped.join(", ")}
+              AI, and WebLLM needs a WebGPU-capable browser. Use the cloud mode instead.
             </div>
           )}
 

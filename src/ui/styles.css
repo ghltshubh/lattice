@@ -90,14 +90,11 @@ header h1 {
   padding: 5px 11px;
   white-space: nowrap;
   background: #ffdd00;
-  transition:
-    filter 0.15s ease,
-    transform 0.15s ease;
+  transition: filter 0.15s ease;
 }
 
 .coffee:hover {
   filter: brightness(1.06);
-  transform: translateY(-1px);
 }
 
 main {
@@ -209,17 +206,13 @@ button:focus-visible {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
+/* Fixed height on purpose: the layout must not reflow when panel content
+   changes (e.g. switching modes) — the user resizes it manually if needed. */
 textarea {
-  min-height: 120px;
+  height: 170px;
+  min-height: 90px;
   resize: vertical;
   line-height: 1.5;
-}
-
-/* The one deliberate flex exception (see .input-panel > *): the textarea
-   absorbs spare space and compresses first so Build stays in frame. */
-.input-panel > textarea {
-  flex: 1 1 120px;
-  min-height: 76px;
 }
 
 select {
@@ -496,4 +489,13 @@ hr {
 
 .panel::-webkit-scrollbar-track {
   background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    /* biome-ignore lint/complexity/noImportantStyles: the reduced-motion reset must beat every specificity */
+    transition: none !important;
+    /* biome-ignore lint/complexity/noImportantStyles: the reduced-motion reset must beat every specificity */
+    animation: none !important;
+  }
 }
