@@ -74,28 +74,30 @@ header h1 {
   margin-top: 1px;
 }
 
+/* Buy Me a Coffee's official mark is dark ink for their yellow button —
+   so the pill wears the brand yellow. */
 .coffee {
   margin-left: auto;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  color: var(--text-2);
+  gap: 6px;
+  color: #0d0c22;
   font-size: 12.5px;
+  font-weight: 600;
   text-decoration: none;
-  border: 1px solid var(--border);
+  border: none;
   border-radius: 8px;
   padding: 5px 11px;
   white-space: nowrap;
+  background: #ffdd00;
   transition:
-    border-color 0.15s ease,
-    color 0.15s ease,
-    background-color 0.15s ease;
+    filter 0.15s ease,
+    transform 0.15s ease;
 }
 
 .coffee:hover {
-  color: var(--text);
-  border-color: var(--border-strong);
-  background: var(--field);
+  filter: brightness(1.06);
+  transform: translateY(-1px);
 }
 
 main {

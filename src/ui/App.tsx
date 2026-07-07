@@ -25,6 +25,7 @@ import {
   isModelCached,
   WEBLLM_MODELS,
 } from "../engines/webllm";
+import bmcLogo from "./bmc-logo.svg";
 import { GraphView, type Selection } from "./GraphView";
 import { SAMPLE_TEXT } from "./sample";
 
@@ -276,14 +277,7 @@ export default function App() {
           target="_blank"
           rel="noreferrer"
         >
-          <svg width="13" height="17" viewBox="0 0 14 18" aria-hidden="true">
-            <rect x="1" y="2" width="12" height="2.4" rx="1" fill="#ffdd00" />
-            <path
-              d="M2.2 6 h9.6 l-1.1 9.4 a1.8 1.8 0 0 1 -1.8 1.6 H5.1 a1.8 1.8 0 0 1 -1.8 -1.6 Z"
-              fill="#ffdd00"
-            />
-            <path d="M2.55 9 h8.9 l-0.3 2.6 H2.85 Z" fill="#1a1a19" opacity="0.35" />
-          </svg>
+          <img src={bmcLogo} width="12" height="17" alt="" />
           Buy me a coffee
         </a>
       </header>
