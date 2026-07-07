@@ -17,11 +17,13 @@ export type Selection = { kind: "node" | "edge"; id: string } | null;
 interface Props {
   graph: KnowledgeGraph;
   onSelect: (selection: Selection) => void;
+  /** Surfaces the live Sigma instance (null on teardown) for PNG/SVG export. */
+  onSigma?: (sigma: Sigma | null) => void;
 }
 
 const DIM_COLOR = "#2b2f3a";
 
-export function GraphView({ graph, onSelect }: Props) {
+export function GraphView({ graph, onSelect, onSigma }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const highlightRef = useRef<{ nodes: Set<string>; edges: Set<string> } | null>(null);
 
@@ -93,11 +95,14 @@ export function GraphView({ graph, onSelect }: Props) {
       onSelect(null);
     });
 
+    onSigma?.(sigma);
+
     return () => {
+      onSigma?.(null);
       sigma.kill();
       highlightRef.current = null;
     };
-  }, [graph, onSelect]);
+  }, [graph, onSelect, onSigma]);
 
   if (graph.nodes.length === 0) {
     return <div className="graph-canvas graph-empty">No nodes — run an extraction first.</div>;

@@ -306,6 +306,79 @@ ${edges}
 }
 
 // ---------------------------------------------------------------------------
+// 6. SVG — vector snapshot of the rendered layout (M6)
+// ---------------------------------------------------------------------------
+
+export interface SVGOptions {
+  /** target drawing width in px (height follows the layout's aspect ratio) */
+  width?: number;
+  background?: string;
+}
+
+/**
+ * Renders the graph to standalone SVG using the caller-supplied layout
+ * positions (e.g. captured from the live Sigma/graphology instance), so the
+ * exported picture matches what's on screen.
+ */
+export function toSVG(
+  graph: ExportableGraph,
+  positions: Record<string, { x: number; y: number }>,
+  options: SVGOptions = {},
+): string {
+  const width = options.width ?? 1200;
+  const background = options.background ?? "#14161c";
+  const nodes = graph.nodes.filter((n) => positions[n.id]);
+
+  const xs = nodes.map((n) => positions[n.id].x);
+  const ys = nodes.map((n) => positions[n.id].y);
+  const minX = Math.min(...xs, 0);
+  const maxX = Math.max(...xs, 1);
+  const minY = Math.min(...ys, 0);
+  const maxY = Math.max(...ys, 1);
+  const pad = 60;
+  const scale = (width - 2 * pad) / Math.max(maxX - minX, 1e-6);
+  const height = Math.max(200, Math.round((maxY - minY) * scale + 2 * pad));
+  const px = (x: number) => pad + (x - minX) * scale;
+  const py = (y: number) => pad + (maxY - y) * scale; // flip: SVG y grows downward
+
+  const radius = (n: GraphNode) => 5 + Math.sqrt(Math.max(n.mentions, 1)) * 3;
+
+  const edgeEls = graph.edges
+    .filter((e) => positions[e.source] && positions[e.target])
+    .map((e) => {
+      const a = positions[e.source];
+      const b = positions[e.target];
+      const w = Math.min(1 + e.weight * 0.7, 5);
+      const mx = (px(a.x) + px(b.x)) / 2;
+      const my = (py(a.y) + py(b.y)) / 2;
+      return `  <line x1="${px(a.x).toFixed(1)}" y1="${py(a.y).toFixed(1)}" x2="${px(b.x).toFixed(1)}" y2="${py(b.y).toFixed(1)}" stroke="#4a5065" stroke-width="${w}" marker-end="url(#arrow)"/>
+  <text x="${mx.toFixed(1)}" y="${(my - 4).toFixed(1)}" font-size="9" fill="#8890a4" text-anchor="middle">${xml(e.label)}</text>`;
+    })
+    .join("\n");
+
+  const nodeEls = nodes
+    .map((n) => {
+      const p = positions[n.id];
+      const r = radius(n);
+      const color = TYPE_COLOR[n.type] ?? TYPE_COLOR.other;
+      return `  <circle cx="${px(p.x).toFixed(1)}" cy="${py(p.y).toFixed(1)}" r="${r.toFixed(1)}" fill="${color}"/>
+  <text x="${(px(p.x) + r + 4).toFixed(1)}" y="${(py(p.y) + 4).toFixed(1)}" font-size="12" fill="#c8cede">${xml(n.label)}</text>`;
+    })
+    .join("\n");
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4a5065"/>
+    </marker>
+  </defs>
+  <rect width="100%" height="100%" fill="${background}"/>
+${edgeEls}
+${nodeEls}
+</svg>`;
+}
+
+// ---------------------------------------------------------------------------
 // Download wiring (browser)
 // ---------------------------------------------------------------------------
 

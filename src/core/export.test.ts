@@ -6,6 +6,7 @@ import {
   toJSONCanvas,
   toObsidianVault,
   toPortableJSON,
+  toSVG,
 } from "./export";
 
 const GRAPH: ExportableGraph = {
@@ -106,5 +107,28 @@ describe("toObsidianVault", () => {
     };
     const paths = toObsidianVault(collided).map((f) => f.path);
     expect(new Set(paths).size).toBe(2);
+  });
+});
+
+describe("toSVG", () => {
+  const positions = { n0: { x: 0, y: 0 }, n1: { x: 10, y: 5 } };
+
+  it("draws one circle per node and one line per edge, xml-escaped", () => {
+    const svg = toSVG(GRAPH, positions);
+    expect(svg.match(/<circle /g)).toHaveLength(2);
+    expect(svg.match(/<line /g)).toHaveLength(1);
+    expect(svg).toContain("Alpha &amp; Co");
+    expect(svg).not.toContain("<Labs>");
+  });
+
+  it("skips nodes and edges without positions instead of crashing", () => {
+    const svg = toSVG(GRAPH, { n0: { x: 0, y: 0 } });
+    expect(svg.match(/<circle /g)).toHaveLength(1);
+    expect(svg).not.toContain("<line ");
+  });
+
+  it("produces finite viewBox dimensions for a single node", () => {
+    const svg = toSVG({ ...GRAPH, nodes: [GRAPH.nodes[0]], edges: [] }, { n0: { x: 3, y: 3 } });
+    expect(svg).toMatch(/viewBox="0 0 \d+ \d+"/);
   });
 });

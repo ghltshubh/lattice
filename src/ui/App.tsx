@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
-import { downloadGraph, type ExportFormat } from "../core/export";
+import { downloadAsPNG } from "@sigma/export-image";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type Sigma from "sigma";
+import { downloadGraph, downloadText, type ExportFormat, toSVG } from "../core/export";
 import { ingestFile } from "../core/ingest";
 import {
   deleteGraph,
@@ -12,6 +14,7 @@ import { runPipeline } from "../core/pipeline";
 import { estimateTokens, TOKEN_GUARDRAIL } from "../core/tokens";
 import type { Availability, GraphEdge, InferenceMode, KnowledgeGraph } from "../core/types";
 import { checkAvailability, createEngine, privateEngineId } from "../engines";
+import { DEFAULT_OPENROUTER_MODEL } from "../engines/openrouter";
 import {
   DEFAULT_WEBLLM_MODEL,
   freeStorageGB,
@@ -21,12 +24,16 @@ import {
 import { GraphView, type Selection } from "./GraphView";
 import { SAMPLE_TEXT } from "./sample";
 
-const EXPORT_FORMATS: { id: ExportFormat; label: string }[] = [
+type UIExportFormat = ExportFormat | "png" | "svg";
+
+const EXPORT_FORMATS: { id: UIExportFormat; label: string }[] = [
   { id: "portable-json", label: "Portable JSON" },
   { id: "json-canvas", label: "JSON Canvas (Obsidian)" },
   { id: "obsidian-vault", label: "Obsidian vault (.zip)" },
   { id: "cytoscape", label: "Cytoscape.js" },
   { id: "graphml", label: "GraphML (Gephi/yEd)" },
+  { id: "png", label: "PNG image (as rendered)" },
+  { id: "svg", label: "SVG image (as rendered)" },
 ];
 
 export default function App() {
@@ -41,6 +48,11 @@ export default function App() {
   const [modelCached, setModelCached] = useState<boolean | null>(null);
   const [freeGB, setFreeGB] = useState<number | null>(null);
   const [needsConsent, setNeedsConsent] = useState(false);
+  const [orKey, setOrKey] = useState(() => localStorage.getItem("lattice.openrouterKey") ?? "");
+  const [orModel, setOrModel] = useState(
+    () => localStorage.getItem("lattice.openrouterModel") ?? DEFAULT_OPENROUTER_MODEL,
+  );
+  const sigmaRef = useRef<Sigma | null>(null);
   const [availability, setAvailability] = useState<Record<string, Availability>>({});
   const [status, setStatus] = useState("");
   const [running, setRunning] = useState(false);
@@ -51,7 +63,7 @@ export default function App() {
   const [dropped, setDropped] = useState<number[]>([]);
   const [selection, setSelection] = useState<Selection>(null);
   const [saved, setSaved] = useState<SavedGraphSummary[]>([]);
-  const [exportFormat, setExportFormat] = useState<ExportFormat>("portable-json");
+  const [exportFormat, setExportFormat] = useState<UIExportFormat>("portable-json");
 
   const refreshSaved = useCallback(() => {
     listGraphs()
@@ -70,6 +82,14 @@ export default function App() {
   }, [mode]);
 
   useEffect(() => {
+    localStorage.setItem("lattice.openrouterKey", orKey);
+  }, [orKey]);
+
+  useEffect(() => {
+    localStorage.setItem("lattice.openrouterModel", orModel);
+  }, [orModel]);
+
+  useEffect(() => {
     localStorage.setItem("lattice.webllmModel", webllmModel);
     setNeedsConsent(false);
     setModelCached(null);
@@ -78,10 +98,13 @@ export default function App() {
 
   // Dev override: ?engine=webllm exercises the fallback path on Nano-capable machines.
   const activeEngine =
-    new URLSearchParams(window.location.search).get("engine") === "webllm"
-      ? "webllm"
-      : privateEngineId(availability);
-  const engineUsable = mode === "private" && availability[activeEngine] !== "unavailable";
+    mode === "quality"
+      ? "openrouter"
+      : new URLSearchParams(window.location.search).get("engine") === "webllm"
+        ? "webllm"
+        : privateEngineId(availability);
+  const engineUsable =
+    mode === "quality" ? orKey.trim() !== "" : availability[activeEngine] !== "unavailable";
   const webllmChoice = WEBLLM_MODELS.find((m) => m.id === webllmModel) ?? WEBLLM_MODELS[0];
 
   async function runText(body: string, force: boolean, downloadConsented = false) {
@@ -104,7 +127,11 @@ export default function App() {
     setGuardrail(null);
     setRunning(true);
     setSelection(null);
-    const engine = createEngine(activeEngine, { webllmModel });
+    const engine = createEngine(activeEngine, {
+      webllmModel,
+      openrouterKey: orKey,
+      openrouterModel: orModel,
+    });
     try {
       setStatus("Preparing engine…");
       await engine.init((p) =>
@@ -175,12 +202,40 @@ export default function App() {
   }
 
   const onSelect = useCallback((sel: Selection) => setSelection(sel), []);
+  const onSigma = useCallback((s: Sigma | null) => {
+    sigmaRef.current = s;
+  }, []);
+
+  async function onExport() {
+    if (!graph) return;
+    const name = (graph.meta.title || "graph").replace(/[\\/:*?"<>|]/g, "_");
+    if (exportFormat === "png" || exportFormat === "svg") {
+      const sigma = sigmaRef.current;
+      if (!sigma) {
+        setError("Render the graph before exporting an image.");
+        return;
+      }
+      if (exportFormat === "png") {
+        await downloadAsPNG(sigma, { fileName: name, backgroundColor: "#14161c" });
+      } else {
+        const positions: Record<string, { x: number; y: number }> = {};
+        sigma.getGraph().forEachNode((id, attrs) => {
+          positions[id] = { x: attrs.x as number, y: attrs.y as number };
+        });
+        downloadText(`${name}.svg`, toSVG(graph, positions), "image/svg+xml");
+      }
+      return;
+    }
+    await downloadGraph(graph, exportFormat);
+  }
 
   return (
     <div className="app">
       <header>
         <h1>Lattice</h1>
-        <span className="tagline">documents → propositions → knowledge graph, all on-device</span>
+        <span className="tagline">
+          documents → propositions → knowledge graph, on-device by default
+        </span>
       </header>
       <main>
         <aside className="panel input-panel">
@@ -220,12 +275,43 @@ export default function App() {
             <button
               type="button"
               className={mode === "quality" ? "active" : ""}
-              disabled
-              title="Arrives at M7 — bring your own OpenRouter key"
+              onClick={() => setMode("quality")}
+              disabled={running}
+              title="Bring your own OpenRouter key — document text is sent to the cloud"
             >
-              High quality · cloud (soon)
+              High quality · cloud
             </button>
           </div>
+
+          {mode === "quality" && (
+            <>
+              <div className="banner warn">
+                In this mode your document text is sent to OpenRouter and its upstream model
+                provider, using your key. Nothing is proxied through any Lattice server.
+              </div>
+              <label htmlFor="or-key">OpenRouter API key</label>
+              <input
+                id="or-key"
+                type="password"
+                value={orKey}
+                placeholder="sk-or-…"
+                autoComplete="off"
+                onChange={(e) => setOrKey(e.target.value)}
+              />
+              <label htmlFor="or-model">Model (any OpenRouter id)</label>
+              <input
+                id="or-model"
+                value={orModel}
+                placeholder={DEFAULT_OPENROUTER_MODEL}
+                onChange={(e) => setOrModel(e.target.value)}
+              />
+              {!orKey.trim() && (
+                <div className="status">
+                  Paste a key to enable this mode — stored only in this browser.
+                </div>
+              )}
+            </>
+          )}
 
           {mode === "private" && activeEngine === "prompt-api" && (
             <div className="status">
@@ -334,7 +420,7 @@ export default function App() {
                 <select
                   id="export-format"
                   value={exportFormat}
-                  onChange={(e) => setExportFormat(e.target.value as ExportFormat)}
+                  onChange={(e) => setExportFormat(e.target.value as UIExportFormat)}
                 >
                   {EXPORT_FORMATS.map((f) => (
                     <option key={f.id} value={f.id}>
@@ -342,7 +428,7 @@ export default function App() {
                     </option>
                   ))}
                 </select>
-                <button type="button" onClick={() => downloadGraph(graph, exportFormat)}>
+                <button type="button" onClick={onExport}>
                   Download
                 </button>
               </div>
@@ -381,7 +467,7 @@ export default function App() {
 
         <section className="graph-area">
           {graph ? (
-            <GraphView graph={graph} onSelect={onSelect} />
+            <GraphView graph={graph} onSelect={onSelect} onSigma={onSigma} />
           ) : (
             <div className="graph-canvas graph-empty">
               Paste text and hit “Build graph” to see something here.

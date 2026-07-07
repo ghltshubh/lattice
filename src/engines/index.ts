@@ -5,11 +5,14 @@
  */
 
 import type { Availability, EngineId, ExtractionEngine } from "../core/types";
+import { OpenRouterEngine } from "./openrouter";
 import { PromptApiEngine } from "./prompt-api";
 import { WebLLMEngine } from "./webllm";
 
 export interface EngineOptions {
   webllmModel?: string;
+  openrouterKey?: string;
+  openrouterModel?: string;
 }
 
 export function createEngine(id: EngineId, options: EngineOptions = {}): ExtractionEngine {
@@ -19,7 +22,7 @@ export function createEngine(id: EngineId, options: EngineOptions = {}): Extract
     case "webllm":
       return new WebLLMEngine(options.webllmModel);
     case "openrouter":
-      throw new Error("OpenRouter engine lands at milestone M7");
+      return new OpenRouterEngine(options.openrouterKey ?? "", options.openrouterModel);
   }
 }
 

@@ -22,7 +22,7 @@ bun is the package manager — not npm, despite what BUILD_PLAN.md implies.
 - `src/engines/` — `ExtractionEngine` implementations (Prompt API today; WebLLM lands at M5). The UI and pipeline depend only on the interface in `src/core/types.ts`; never hardwire a specific engine.
 - `src/ui/` — React components. Vite + React 19, Sigma.js for rendering.
 
-Milestone state: M0–M5 done (WebLLM + mode toggle + download-consent screen), persistence/export mostly done. Remaining: M6 PNG/SVG canvas export, M7 (BYOK OpenRouter engine). Dev override: `?engine=webllm` forces the WebLLM path on Nano-capable machines.
+Milestone state: M0–M7 all done (plan complete: dual on-device engines, mode toggle with download consent, persistence, full export set incl. PNG/SVG, BYOK OpenRouter cloud engine). Dev override: `?engine=webllm` forces the WebLLM path on Nano-capable machines.
 
 ## Gotchas
 
