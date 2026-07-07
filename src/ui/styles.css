@@ -309,15 +309,8 @@ button.link.danger:hover:not(:disabled) {
   align-items: center;
 }
 
-.row > select,
-.row > .connect-btn {
+.row > select {
   flex: 1;
-}
-
-/* Fixed width so the label change (paste a key ↔ hide) never resizes siblings. */
-.key-toggle {
-  width: 88px;
-  text-align: center;
 }
 
 /* ---------- mode toggle (segmented control) ---------- */

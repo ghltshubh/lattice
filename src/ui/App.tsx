@@ -53,7 +53,6 @@ export default function App() {
   const [modelCached, setModelCached] = useState<boolean | null>(null);
   const [freeGB, setFreeGB] = useState<number | null>(null);
   const [needsConsent, setNeedsConsent] = useState(false);
-  const [showManualKey, setShowManualKey] = useState(false);
   const [orKey, setOrKey] = useState(() => localStorage.getItem("lattice.openrouterKey") ?? "");
   const [orModel, setOrModel] = useState(
     () => localStorage.getItem("lattice.openrouterModel") ?? DEFAULT_OPENROUTER_MODEL,
@@ -397,34 +396,23 @@ export default function App() {
               </div>
               {!orKey.trim() ? (
                 <>
-                  <div className="row">
-                    <button
-                      type="button"
-                      className="primary connect-btn"
-                      onClick={() => startOpenRouterAuth()}
-                      title="Authorizes on openrouter.ai and returns a key scoped to your account, stored only in this browser"
-                    >
-                      Connect OpenRouter
-                    </button>
-                    <button
-                      type="button"
-                      className="link key-toggle"
-                      onClick={() => setShowManualKey((v) => !v)}
-                    >
-                      {showManualKey ? "hide" : "paste a key"}
-                    </button>
-                  </div>
-                  {showManualKey && (
-                    <input
-                      id="or-key"
-                      type="password"
-                      value={orKey}
-                      placeholder="sk-or-…"
-                      autoComplete="off"
-                      aria-label="OpenRouter API key"
-                      onChange={(e) => setOrKey(e.target.value)}
-                    />
-                  )}
+                  <button
+                    type="button"
+                    className="primary"
+                    onClick={() => startOpenRouterAuth()}
+                    title="Authorizes on openrouter.ai and returns a key scoped to your account, stored only in this browser"
+                  >
+                    Connect OpenRouter
+                  </button>
+                  <label htmlFor="or-key">Or paste an API key</label>
+                  <input
+                    id="or-key"
+                    type="password"
+                    value={orKey}
+                    placeholder="sk-or-…"
+                    autoComplete="off"
+                    onChange={(e) => setOrKey(e.target.value)}
+                  />
                 </>
               ) : (
                 <div className="row">
