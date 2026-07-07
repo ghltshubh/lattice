@@ -52,6 +52,7 @@ export default function App() {
   const [modelCached, setModelCached] = useState<boolean | null>(null);
   const [freeGB, setFreeGB] = useState<number | null>(null);
   const [needsConsent, setNeedsConsent] = useState(false);
+  const [showManualKey, setShowManualKey] = useState(false);
   const [orKey, setOrKey] = useState(() => localStorage.getItem("lattice.openrouterKey") ?? "");
   const [orModel, setOrModel] = useState(
     () => localStorage.getItem("lattice.openrouterModel") ?? DEFAULT_OPENROUTER_MODEL,
@@ -290,8 +291,8 @@ export default function App() {
             <button type="button" onClick={() => setText(SAMPLE_TEXT)} disabled={running}>
               Load sample
             </button>
-            <label className="upload-btn">
-              Upload PDF / DOCX / TXT
+            <label className="upload-btn" title="PDF, DOCX, TXT or Markdown">
+              Upload file
               <input type="file" accept=".pdf,.docx,.txt,.md" onChange={onUpload} hidden />
             </label>
           </div>
@@ -318,19 +319,40 @@ export default function App() {
 
           {mode === "quality" && (
             <>
-              <div className="banner warn">
-                In this mode your document text is sent to OpenRouter and its upstream model
-                provider, using your key. Nothing is proxied through any Lattice server.
+              <div className="banner warn compact">
+                Document text is sent to OpenRouter and its model provider, using your key — never
+                through any Lattice server.
               </div>
               {!orKey.trim() ? (
                 <>
-                  <button type="button" className="primary" onClick={() => startOpenRouterAuth()}>
-                    Connect OpenRouter
-                  </button>
-                  <div className="status">
-                    Authorizes on openrouter.ai and returns a key scoped to your account — or paste
-                    one manually below. Stored only in this browser.
+                  <div className="row">
+                    <button
+                      type="button"
+                      className="primary connect-btn"
+                      onClick={() => startOpenRouterAuth()}
+                      title="Authorizes on openrouter.ai and returns a key scoped to your account, stored only in this browser"
+                    >
+                      Connect OpenRouter
+                    </button>
+                    <button
+                      type="button"
+                      className="link"
+                      onClick={() => setShowManualKey((v) => !v)}
+                    >
+                      {showManualKey ? "hide" : "paste a key"}
+                    </button>
                   </div>
+                  {showManualKey && (
+                    <input
+                      id="or-key"
+                      type="password"
+                      value={orKey}
+                      placeholder="sk-or-…"
+                      autoComplete="off"
+                      aria-label="OpenRouter API key"
+                      onChange={(e) => setOrKey(e.target.value)}
+                    />
+                  )}
                 </>
               ) : (
                 <div className="row">
@@ -340,15 +362,6 @@ export default function App() {
                   </button>
                 </div>
               )}
-              <label htmlFor="or-key">OpenRouter API key</label>
-              <input
-                id="or-key"
-                type="password"
-                value={orKey}
-                placeholder="sk-or-…"
-                autoComplete="off"
-                onChange={(e) => setOrKey(e.target.value)}
-              />
               <label htmlFor="or-model">Model (any OpenRouter id)</label>
               <input
                 id="or-model"
