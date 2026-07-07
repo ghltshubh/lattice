@@ -14,7 +14,11 @@ import { runPipeline } from "../core/pipeline";
 import { estimateTokens, TOKEN_GUARDRAIL } from "../core/tokens";
 import type { Availability, GraphEdge, InferenceMode, KnowledgeGraph } from "../core/types";
 import { checkAvailability, createEngine, privateEngineId } from "../engines";
-import { DEFAULT_OPENROUTER_MODEL } from "../engines/openrouter";
+import {
+  completeOpenRouterAuth,
+  DEFAULT_OPENROUTER_MODEL,
+  startOpenRouterAuth,
+} from "../engines/openrouter";
 import {
   DEFAULT_WEBLLM_MODEL,
   freeStorageGB,
@@ -75,6 +79,15 @@ export default function App() {
     checkAvailability().then(setAvailability);
     freeStorageGB().then(setFreeGB);
     refreshSaved();
+    completeOpenRouterAuth()
+      .then((key) => {
+        if (key) {
+          setOrKey(key);
+          setMode("quality");
+          setStatus("OpenRouter connected — key stored in this browser.");
+        }
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : String(err)));
   }, [refreshSaved]);
 
   useEffect(() => {
@@ -289,6 +302,24 @@ export default function App() {
                 In this mode your document text is sent to OpenRouter and its upstream model
                 provider, using your key. Nothing is proxied through any Lattice server.
               </div>
+              {!orKey.trim() ? (
+                <>
+                  <button type="button" className="primary" onClick={() => startOpenRouterAuth()}>
+                    Connect OpenRouter
+                  </button>
+                  <div className="status">
+                    Authorizes on openrouter.ai and returns a key scoped to your account — or paste
+                    one manually below. Stored only in this browser.
+                  </div>
+                </>
+              ) : (
+                <div className="row">
+                  <span className="status">✓ OpenRouter connected</span>
+                  <button type="button" className="link danger" onClick={() => setOrKey("")}>
+                    Disconnect
+                  </button>
+                </div>
+              )}
               <label htmlFor="or-key">OpenRouter API key</label>
               <input
                 id="or-key"
@@ -305,11 +336,6 @@ export default function App() {
                 placeholder={DEFAULT_OPENROUTER_MODEL}
                 onChange={(e) => setOrModel(e.target.value)}
               />
-              {!orKey.trim() && (
-                <div className="status">
-                  Paste a key to enable this mode — stored only in this browser.
-                </div>
-              )}
             </>
           )}
 

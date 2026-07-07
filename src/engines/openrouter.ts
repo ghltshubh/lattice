@@ -12,7 +12,57 @@ import { EXTRACTION_SCHEMA } from "./schema";
 import { parseExtraction } from "./validate";
 
 const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
+const AUTH_URL = "https://openrouter.ai/auth";
+const KEY_EXCHANGE_URL = "https://openrouter.ai/api/v1/auth/keys";
+const VERIFIER_STORAGE = "lattice.orVerifier";
 const MAX_RETRIES = 2;
+
+function base64url(bytes: Uint8Array): string {
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+
+/**
+ * OAuth PKCE, step 1: stash a code verifier and send the user to OpenRouter's
+ * consent page. They come back to the current URL with ?code=…
+ */
+export async function startOpenRouterAuth(): Promise<void> {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  const verifier = base64url(bytes);
+  sessionStorage.setItem(VERIFIER_STORAGE, verifier);
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
+  const challenge = base64url(new Uint8Array(digest));
+  const callback = `${window.location.origin}${window.location.pathname}`;
+  window.location.href = `${AUTH_URL}?callback_url=${encodeURIComponent(callback)}&code_challenge=${challenge}&code_challenge_method=S256`;
+}
+
+/**
+ * OAuth PKCE, step 2: on page load, exchange a ?code=… (if present) for a
+ * user-scoped API key. Returns null when this load isn't an OAuth callback.
+ * Cleans the code out of the URL either way.
+ */
+export async function completeOpenRouterAuth(): Promise<string | null> {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get("code");
+  if (!code) return null;
+  params.delete("code");
+  const query = params.toString();
+  window.history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
+  const verifier = sessionStorage.getItem(VERIFIER_STORAGE);
+  sessionStorage.removeItem(VERIFIER_STORAGE);
+  if (!verifier) return null; // stale or foreign redirect — ignore
+  const res = await fetch(KEY_EXCHANGE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code, code_verifier: verifier, code_challenge_method: "S256" }),
+  });
+  if (!res.ok) throw new Error(`OpenRouter key exchange failed (${res.status})`);
+  const data = (await res.json()) as { key?: string };
+  return data.key ?? null;
+}
 
 /** Editable in the UI — any OpenRouter model id works; this is just a sane cheap default. */
 export const DEFAULT_OPENROUTER_MODEL = "openai/gpt-4o-mini";
