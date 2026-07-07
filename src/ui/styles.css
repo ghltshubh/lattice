@@ -128,11 +128,6 @@ main {
   flex-shrink: 0;
 }
 
-.input-panel > textarea {
-  flex: 1 1 120px;
-  min-height: 76px;
-}
-
 .details-panel {
   border-left: 1px solid var(--border);
   font-size: 13px;
@@ -218,6 +213,13 @@ textarea {
   min-height: 120px;
   resize: vertical;
   line-height: 1.5;
+}
+
+/* The one deliberate flex exception (see .input-panel > *): the textarea
+   absorbs spare space and compresses first so Build stays in frame. */
+.input-panel > textarea {
+  flex: 1 1 120px;
+  min-height: 76px;
 }
 
 select {
