@@ -10,14 +10,16 @@ import {
 } from "../core/persist";
 import { runPipeline } from "../core/pipeline";
 import { estimateTokens, TOKEN_GUARDRAIL } from "../core/tokens";
-import type { Availability, EngineId, GraphEdge, KnowledgeGraph } from "../core/types";
-import { checkAvailability, createEngine, SELECTABLE_ENGINES } from "../engines";
+import type { Availability, GraphEdge, InferenceMode, KnowledgeGraph } from "../core/types";
+import { checkAvailability, createEngine, privateEngineId } from "../engines";
+import {
+  DEFAULT_WEBLLM_MODEL,
+  freeStorageGB,
+  isModelCached,
+  WEBLLM_MODELS,
+} from "../engines/webllm";
 import { GraphView, type Selection } from "./GraphView";
 import { SAMPLE_TEXT } from "./sample";
-
-const ENGINE_LABEL: Record<string, string> = {
-  "prompt-api": "Gemini Nano (built-in)",
-};
 
 const EXPORT_FORMATS: { id: ExportFormat; label: string }[] = [
   { id: "portable-json", label: "Portable JSON" },
@@ -30,7 +32,15 @@ const EXPORT_FORMATS: { id: ExportFormat; label: string }[] = [
 export default function App() {
   const [text, setText] = useState("");
   const [title, setTitle] = useState("");
-  const [engineId, setEngineId] = useState<EngineId>("prompt-api");
+  const [mode, setMode] = useState<InferenceMode>(() =>
+    localStorage.getItem("lattice.mode") === "quality" ? "quality" : "private",
+  );
+  const [webllmModel, setWebllmModel] = useState(
+    () => localStorage.getItem("lattice.webllmModel") ?? DEFAULT_WEBLLM_MODEL,
+  );
+  const [modelCached, setModelCached] = useState<boolean | null>(null);
+  const [freeGB, setFreeGB] = useState<number | null>(null);
+  const [needsConsent, setNeedsConsent] = useState(false);
   const [availability, setAvailability] = useState<Record<string, Availability>>({});
   const [status, setStatus] = useState("");
   const [running, setRunning] = useState(false);
@@ -51,12 +61,30 @@ export default function App() {
 
   useEffect(() => {
     checkAvailability().then(setAvailability);
+    freeStorageGB().then(setFreeGB);
     refreshSaved();
   }, [refreshSaved]);
 
-  const engineUsable = availability[engineId] !== "unavailable";
+  useEffect(() => {
+    localStorage.setItem("lattice.mode", mode);
+  }, [mode]);
 
-  async function runText(body: string, force: boolean) {
+  useEffect(() => {
+    localStorage.setItem("lattice.webllmModel", webllmModel);
+    setNeedsConsent(false);
+    setModelCached(null);
+    isModelCached(webllmModel).then(setModelCached);
+  }, [webllmModel]);
+
+  // Dev override: ?engine=webllm exercises the fallback path on Nano-capable machines.
+  const activeEngine =
+    new URLSearchParams(window.location.search).get("engine") === "webllm"
+      ? "webllm"
+      : privateEngineId(availability);
+  const engineUsable = mode === "private" && availability[activeEngine] !== "unavailable";
+  const webllmChoice = WEBLLM_MODELS.find((m) => m.id === webllmModel) ?? WEBLLM_MODELS[0];
+
+  async function runText(body: string, force: boolean, downloadConsented = false) {
     setError(null);
     if (!body.trim()) {
       setError("Paste some text or upload a document first.");
@@ -67,13 +95,22 @@ export default function App() {
       setGuardrail(estimate);
       return;
     }
+    // §1a: no bytes move without explicit consent to the download.
+    if (activeEngine === "webllm" && modelCached === false && !downloadConsented) {
+      setNeedsConsent(true);
+      return;
+    }
+    setNeedsConsent(false);
     setGuardrail(null);
     setRunning(true);
     setSelection(null);
-    const engine = createEngine(engineId);
+    const engine = createEngine(activeEngine, { webllmModel });
     try {
       setStatus("Preparing engine…");
-      await engine.init((p) => setStatus(`Downloading model… ${Math.round(p * 100)}%`));
+      await engine.init((p) =>
+        setStatus(`${modelCached ? "Loading" : "Downloading"} model… ${Math.round(p * 100)}%`),
+      );
+      if (activeEngine === "webllm") setModelCached(true);
       const result = await runPipeline(body, engine, {
         title: title.trim() || undefined,
         callbacks: {
@@ -170,21 +207,59 @@ export default function App() {
               <input type="file" accept=".pdf,.docx,.txt,.md" onChange={onUpload} hidden />
             </label>
           </div>
-          <label htmlFor="engine">Engine</label>
-          <select
-            id="engine"
-            value={engineId}
-            onChange={(e) => setEngineId(e.target.value as EngineId)}
-            disabled={running}
-          >
-            {SELECTABLE_ENGINES.map((id) => (
-              <option key={id} value={id} disabled={availability[id] === "unavailable"}>
-                {ENGINE_LABEL[id] ?? id}
-                {availability[id] === "unavailable" ? " — unavailable" : ""}
-                {availability[id] === "downloadable" ? " — needs one-time download" : ""}
-              </option>
-            ))}
-          </select>
+          <span className="section-label">Mode</span>
+          <div className="mode-toggle">
+            <button
+              type="button"
+              className={mode === "private" ? "active" : ""}
+              onClick={() => setMode("private")}
+              disabled={running}
+            >
+              Private · on-device
+            </button>
+            <button
+              type="button"
+              className={mode === "quality" ? "active" : ""}
+              disabled
+              title="Arrives at M7 — bring your own OpenRouter key"
+            >
+              High quality · cloud (soon)
+            </button>
+          </div>
+
+          {mode === "private" && activeEngine === "prompt-api" && (
+            <div className="status">
+              Engine: Gemini Nano (built-in)
+              {availability["prompt-api"] === "downloadable"
+                ? " — Chrome will fetch it on first run"
+                : ""}
+            </div>
+          )}
+          {mode === "private" && activeEngine === "webllm" && (
+            <>
+              <label htmlFor="webllm-model">Model (runs in your browser)</label>
+              <select
+                id="webllm-model"
+                value={webllmModel}
+                onChange={(e) => setWebllmModel(e.target.value)}
+                disabled={running}
+              >
+                {WEBLLM_MODELS.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label} — ~{m.sizeGB} GB download
+                  </option>
+                ))}
+              </select>
+              <div className="status">
+                {modelCached === null
+                  ? "Checking model cache…"
+                  : modelCached
+                    ? "Model cached — no download needed."
+                    : `Needs a one-time ~${webllmChoice.sizeGB} GB download (stored in this browser).`}
+              </div>
+            </>
+          )}
+
           <button
             type="button"
             className="primary"
@@ -194,11 +269,32 @@ export default function App() {
             {running ? "Running…" : "Build graph"}
           </button>
 
-          {!engineUsable && (
+          {needsConsent && (
             <div className="banner warn">
-              No extraction engine is available in this browser. Gemini Nano needs desktop Chrome
-              with built-in AI (Chrome 138+ on capable hardware). A download-once WebLLM engine for
-              other browsers is planned (M5).
+              <strong>One-time model download.</strong> {webllmChoice.label} is ~
+              {webllmChoice.sizeGB} GB of browser storage
+              {freeGB !== null ? ` (you have ~${freeGB.toFixed(1)} GB free)` : ""} and needs a GPU
+              with ~{webllmChoice.vramGB} GB of memory while running. It stays cached — future runs
+              start instantly, and nothing ever leaves your device.
+              {freeGB !== null && freeGB < webllmChoice.sizeGB * 1.5 && (
+                <div>⚠ Storage is tight — consider a smaller model.</div>
+              )}
+              <div className="row">
+                <button type="button" onClick={() => runText(text, false, true)}>
+                  Download ~{webllmChoice.sizeGB} GB &amp; build
+                </button>
+                <button type="button" onClick={() => setNeedsConsent(false)}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!engineUsable && mode === "private" && (
+            <div className="banner warn">
+              No on-device engine is available: Gemini Nano needs desktop Chrome 138+ with built-in
+              AI, and WebLLM needs a WebGPU-capable browser. The cloud mode (M7) will cover this
+              case.
             </div>
           )}
 

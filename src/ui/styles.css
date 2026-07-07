@@ -265,3 +265,26 @@ progress {
   letter-spacing: 0.08em;
   color: var(--muted);
 }
+
+.mode-toggle {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.mode-toggle button {
+  flex: 1;
+  border: none;
+  border-radius: 0;
+  background: var(--bg);
+  font-size: 12px;
+  padding: 8px 6px;
+}
+
+.mode-toggle button.active {
+  background: var(--accent);
+  color: #10131a;
+  font-weight: 600;
+}

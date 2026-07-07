@@ -79,7 +79,10 @@ export interface KnowledgeGraph {
 }
 
 // ---------- Engine abstraction (§8) ----------
-export type EngineId = "prompt-api" | "webllm";
+export type EngineId = "prompt-api" | "webllm" | "openrouter";
+
+/** UI mode (§1a): maps to engines in the registry, never hardwired. */
+export type InferenceMode = "private" | "quality";
 
 export type Availability = "ready" | "downloadable" | "unavailable";
 
