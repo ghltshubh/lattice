@@ -1,7 +1,7 @@
 import { downloadAsPNG } from "@sigma/export-image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type Sigma from "sigma";
-import { downloadGraph, downloadText, type ExportFormat, toSVG } from "../core/export";
+import { downloadGraph, downloadText, type ExportFormat, TYPE_COLOR, toSVG } from "../core/export";
 import { ingestFile } from "../core/ingest";
 import {
   deleteGraph,
@@ -252,6 +252,19 @@ export default function App() {
   return (
     <div className="app">
       <header>
+        <svg className="logo" width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+          <g stroke="#333a49" strokeWidth="1.4">
+            <line x1="11" y1="11" x2="4" y2="5" />
+            <line x1="11" y1="11" x2="18" y2="4" />
+            <line x1="11" y1="11" x2="17" y2="17" />
+            <line x1="11" y1="11" x2="5" y2="18" />
+          </g>
+          <circle cx="11" cy="11" r="3.2" fill="#3987e5" />
+          <circle cx="4" cy="5" r="2.2" fill="#e66767" />
+          <circle cx="18" cy="4" r="2.2" fill="#199e70" />
+          <circle cx="17" cy="17" r="2.2" fill="#9085e9" />
+          <circle cx="5" cy="18" r="2.2" fill="#c98500" />
+        </svg>
         <h1>Lattice</h1>
         <span className="tagline">
           documents → propositions → knowledge graph, on-device by default
@@ -537,6 +550,7 @@ function Details({ graph, selection }: { graph: KnowledgeGraph; selection: Selec
       <div>
         <h2>{node.label}</h2>
         <p className="meta">
+          <span className="type-dot" style={{ background: TYPE_COLOR[node.type] }} />
           {node.type} · {node.mentions} mention{node.mentions === 1 ? "" : "s"} · degree{" "}
           {node.degree} · rank {node.rank.toFixed(4)}
         </p>

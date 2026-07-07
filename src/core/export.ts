@@ -37,17 +37,22 @@ export type ExportableGraph = KnowledgeGraph & {
 // Shared helpers
 // ---------------------------------------------------------------------------
 
-/** Hex palette by entity type (JSON Canvas + feeds Sigma rendering too). */
+/**
+ * Hex palette by entity type (JSON Canvas + Sigma + SVG export).
+ * Categorical palette validated for the dark canvas surface (#14161c):
+ * lightness band, chroma floor, CVD separation, ≥3:1 contrast. "other" is a
+ * deliberate neutral — unknowns should read as gray, not as a tenth hue.
+ */
 export const TYPE_COLOR: Record<EntityType, string> = {
-  person: "#e06c75",
-  organization: "#61afef",
-  location: "#98c379",
-  concept: "#c678dd",
-  event: "#e5c07b",
-  artifact: "#56b6c2",
-  quantity: "#d19a66",
-  time: "#8aa2c8",
-  other: "#7f848e",
+  person: "#e66767",
+  organization: "#3987e5",
+  location: "#008300",
+  concept: "#9085e9",
+  event: "#d95926",
+  artifact: "#199e70",
+  quantity: "#c98500",
+  time: "#d55181",
+  other: "#8a8a85",
 };
 
 function propLookup(graph: ExportableGraph): Record<string, string> {
@@ -351,8 +356,8 @@ export function toSVG(
       const w = Math.min(1 + e.weight * 0.7, 5);
       const mx = (px(a.x) + px(b.x)) / 2;
       const my = (py(a.y) + py(b.y)) / 2;
-      return `  <line x1="${px(a.x).toFixed(1)}" y1="${py(a.y).toFixed(1)}" x2="${px(b.x).toFixed(1)}" y2="${py(b.y).toFixed(1)}" stroke="#4a5065" stroke-width="${w}" marker-end="url(#arrow)"/>
-  <text x="${mx.toFixed(1)}" y="${(my - 4).toFixed(1)}" font-size="9" fill="#8890a4" text-anchor="middle">${xml(e.label)}</text>`;
+      return `  <line x1="${px(a.x).toFixed(1)}" y1="${py(a.y).toFixed(1)}" x2="${px(b.x).toFixed(1)}" y2="${py(b.y).toFixed(1)}" stroke="#39404e" stroke-width="${w}" marker-end="url(#arrow)"/>
+  <text x="${mx.toFixed(1)}" y="${(my - 4).toFixed(1)}" font-size="9" fill="#969dad" text-anchor="middle">${xml(e.label)}</text>`;
     })
     .join("\n");
 
@@ -362,14 +367,14 @@ export function toSVG(
       const r = radius(n);
       const color = TYPE_COLOR[n.type] ?? TYPE_COLOR.other;
       return `  <circle cx="${px(p.x).toFixed(1)}" cy="${py(p.y).toFixed(1)}" r="${r.toFixed(1)}" fill="${color}"/>
-  <text x="${(px(p.x) + r + 4).toFixed(1)}" y="${(py(p.y) + 4).toFixed(1)}" font-size="12" fill="#c8cede">${xml(n.label)}</text>`;
+  <text x="${(px(p.x) + r + 4).toFixed(1)}" y="${(py(p.y) + 4).toFixed(1)}" font-size="12" fill="#dfe3ea">${xml(n.label)}</text>`;
     })
     .join("\n");
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="sans-serif">
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4a5065"/>
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#39404e"/>
     </marker>
   </defs>
   <rect width="100%" height="100%" fill="${background}"/>

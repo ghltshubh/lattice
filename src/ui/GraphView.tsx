@@ -21,7 +21,7 @@ interface Props {
   onSigma?: (sigma: Sigma | null) => void;
 }
 
-const DIM_COLOR = "#2b2f3a";
+const DIM_COLOR = "#232833";
 
 export function GraphView({ graph, onSelect, onSigma }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -49,15 +49,15 @@ export function GraphView({ graph, onSelect, onSigma }: Props) {
       g.mergeEdgeAttributes(id, {
         size: Math.min(1 + (attrs.weight ?? 1) * 0.7, 5),
         type: "arrow",
-        color: "#4a5065",
+        color: "#39404e",
       });
     });
 
     const sigma = new Sigma(g, container, {
       renderEdgeLabels: true,
       enableEdgeEvents: true,
-      labelColor: { color: "#c8cede" },
-      edgeLabelColor: { color: "#8890a4" },
+      labelColor: { color: "#dfe3ea" },
+      edgeLabelColor: { color: "#969dad" },
       labelSize: 12,
       edgeLabelSize: 10,
       labelRenderedSizeThreshold: 2,
