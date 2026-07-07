@@ -19,6 +19,6 @@
     }
   },
   "files": {
-    "includes": ["src/**", "vite.config.ts", "index.html"]
+    "includes": ["src/**", "vite.config.ts", "index.html", "!**/*.svg"]
   }
 }
