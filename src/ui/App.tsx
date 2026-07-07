@@ -193,7 +193,9 @@ export default function App() {
     try {
       const result = await ingestFile(file);
       setText(result.text);
-      setTitle(result.title);
+      // Leave the title blank — the engine names the document at build time;
+      // typing one still overrides.
+      setTitle("");
       setStatus(`Loaded ${file.name} (~${estimateTokens(result.text)} tokens).`);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
