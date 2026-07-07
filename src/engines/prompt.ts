@@ -45,3 +45,6 @@ export function buildUserPrompt(chunk: string, ctx: ChunkContext): string {
 
 export const RETRY_PROMPT =
   'Your previous reply was not valid JSON for the required schema. Return ONLY a valid JSON object of the form {"propositions": [...]} — no prose, no markdown fences.';
+
+export const TITLE_PROMPT =
+  "Suggest a short, specific title (3–8 words) for the document excerpt below. Reply with ONLY the title text — no quotes, no trailing punctuation, no commentary.";

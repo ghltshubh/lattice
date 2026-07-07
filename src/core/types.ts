@@ -98,6 +98,8 @@ export interface ExtractionEngine {
   isAvailable(): Promise<Availability>;
   init(onProgress?: (p: number) => void): Promise<void>; // download/load
   extract(chunk: string, ctx: ChunkContext): Promise<ExtractionResult>;
+  /** Optional: suggest a short document title from an excerpt (auto-title when the user leaves it blank). */
+  suggestTitle?(excerpt: string): Promise<string>;
   dispose(): Promise<void>;
 }
 

@@ -6,7 +6,7 @@
  */
 
 import type { Availability, ChunkContext, ExtractionEngine, ExtractionResult } from "../core/types";
-import { buildUserPrompt, RETRY_PROMPT, SYSTEM_PROMPT } from "./prompt";
+import { buildUserPrompt, RETRY_PROMPT, SYSTEM_PROMPT, TITLE_PROMPT } from "./prompt";
 import { EXTRACTION_SCHEMA } from "./schema";
 import { parseExtraction } from "./validate";
 
@@ -64,6 +64,18 @@ export class PromptApiEngine implements ExtractionEngine {
         prompt = RETRY_PROMPT;
       }
       throw new Error(`chunk ${ctx.index}: no valid JSON after ${MAX_RETRIES + 1} attempts`);
+    } finally {
+      session.destroy();
+    }
+  }
+
+  async suggestTitle(excerpt: string): Promise<string> {
+    if (!this.session) await this.init();
+    const base = this.session;
+    if (!base) throw new Error("Prompt API session failed to initialize");
+    const session = await base.clone();
+    try {
+      return await session.prompt(`${TITLE_PROMPT}\n\n${excerpt}`);
     } finally {
       session.destroy();
     }

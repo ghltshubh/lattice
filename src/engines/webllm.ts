@@ -9,7 +9,7 @@
  */
 
 import type { Availability, ChunkContext, ExtractionEngine, ExtractionResult } from "../core/types";
-import { buildUserPrompt, RETRY_PROMPT, SYSTEM_PROMPT } from "./prompt";
+import { buildUserPrompt, RETRY_PROMPT, SYSTEM_PROMPT, TITLE_PROMPT } from "./prompt";
 import { EXTRACTION_SCHEMA } from "./schema";
 import { parseExtraction } from "./validate";
 
@@ -106,6 +106,17 @@ export class WebLLMEngine implements ExtractionEngine {
     throw new Error(
       `chunk ${ctx.index}: no valid JSON after ${MAX_RETRIES + 1} attempts: ${lastRaw.slice(0, 120)}`,
     );
+  }
+
+  async suggestTitle(excerpt: string): Promise<string> {
+    if (!this.engine) await this.init();
+    const engine = this.engine;
+    if (!engine) throw new Error("WebLLM engine failed to initialize");
+    const reply = await engine.chat.completions.create({
+      messages: [{ role: "user", content: `${TITLE_PROMPT}\n\n${excerpt}` }],
+      temperature: 0,
+    });
+    return reply.choices[0]?.message?.content ?? "";
   }
 
   async dispose(): Promise<void> {

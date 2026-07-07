@@ -22,6 +22,18 @@ export interface PipelineResult {
 
 const PRIOR_ENTITY_CARRY = 20;
 
+/** Model title replies arrive with quotes, newlines, or preamble spacing — normalize hard. */
+export function sanitizeTitle(raw: string): string | undefined {
+  const title = raw
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)[0]
+    ?.replace(/^["'“”‘’#*\s]+|["'“”‘’.!*\s]+$/g, "")
+    .slice(0, 80)
+    .trim();
+  return title || undefined;
+}
+
 export async function runPipeline(
   text: string,
   engine: ExtractionEngine,
@@ -57,13 +69,24 @@ export async function runPipeline(
     onChunk?.(chunk.index + 1, chunks.length);
   }
 
+  // Auto-title when the user left it blank; a failure here never blocks the run.
+  let title = options.title;
+  if (!title && engine.suggestTitle) {
+    onStage?.("Naming the document…");
+    try {
+      title = sanitizeTitle(await engine.suggestTitle(text.slice(0, 4000)));
+    } catch (err) {
+      console.warn("Auto-title failed:", err);
+    }
+  }
+
   onStage?.("Resolving entities across chunks…");
   const embedder = await getEmbedder(onStage);
 
   const graph = await assembleGraph(
     extractions,
     {
-      title: options.title,
+      title,
       createdAt: new Date().toISOString(),
       engine: engine.id,
       model: engine.model,

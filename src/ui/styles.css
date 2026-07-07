@@ -66,6 +66,12 @@ main {
   gap: 8px;
 }
 
+/* The panel scrolls; children must never be flex-squeezed (an overflow:hidden
+   child like .mode-toggle otherwise collapses to 0 height when content grows). */
+.input-panel > * {
+  flex-shrink: 0;
+}
+
 .details-panel {
   border-left: 1px solid var(--border);
   font-size: 13px;

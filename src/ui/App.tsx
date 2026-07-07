@@ -160,6 +160,7 @@ export default function App() {
       });
       setGraph(result.graph);
       setDropped(result.droppedChunks);
+      if (result.graph.meta.title) setTitle(result.graph.meta.title);
       setStatus(
         `Done — ${result.graph.nodes.length} nodes, ${result.graph.edges.length} edges from ${result.graph.meta.chunkCount} chunks.`,
       );
@@ -256,7 +257,7 @@ export default function App() {
           <input
             id="doc-title"
             value={title}
-            placeholder="optional document title"
+            placeholder="leave blank to auto-title from content"
             onChange={(e) => setTitle(e.target.value)}
           />
           <label htmlFor="doc-text">Text</label>

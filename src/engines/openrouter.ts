@@ -7,7 +7,7 @@
  */
 
 import type { Availability, ChunkContext, ExtractionEngine, ExtractionResult } from "../core/types";
-import { buildUserPrompt, RETRY_PROMPT, SYSTEM_PROMPT } from "./prompt";
+import { buildUserPrompt, RETRY_PROMPT, SYSTEM_PROMPT, TITLE_PROMPT } from "./prompt";
 import { EXTRACTION_SCHEMA } from "./schema";
 import { parseExtraction } from "./validate";
 
@@ -90,7 +90,7 @@ export class OpenRouterEngine implements ExtractionEngine {
     if (!this.key) throw new Error("OpenRouter API key missing");
   }
 
-  private async complete(messages: ChatMessage[]): Promise<string> {
+  private async complete(messages: ChatMessage[], constrained = true): Promise<string> {
     const res = await fetch(ENDPOINT, {
       method: "POST",
       headers: {
@@ -102,10 +102,12 @@ export class OpenRouterEngine implements ExtractionEngine {
         model: this.model,
         messages,
         temperature: 0,
-        response_format: {
-          type: "json_schema",
-          json_schema: { name: "extraction", strict: true, schema: EXTRACTION_SCHEMA },
-        },
+        ...(constrained && {
+          response_format: {
+            type: "json_schema",
+            json_schema: { name: "extraction", strict: true, schema: EXTRACTION_SCHEMA },
+          },
+        }),
       }),
     });
     if (!res.ok) {
@@ -137,6 +139,10 @@ export class OpenRouterEngine implements ExtractionEngine {
     throw new Error(
       `chunk ${ctx.index}: no valid JSON after ${MAX_RETRIES + 1} attempts: ${lastRaw.slice(0, 120)}`,
     );
+  }
+
+  async suggestTitle(excerpt: string): Promise<string> {
+    return this.complete([{ role: "user", content: `${TITLE_PROMPT}\n\n${excerpt}` }], false);
   }
 
   async dispose(): Promise<void> {}
