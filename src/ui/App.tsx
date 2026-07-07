@@ -408,7 +408,7 @@ export default function App() {
                     </button>
                     <button
                       type="button"
-                      className="link"
+                      className="link key-toggle"
                       onClick={() => setShowManualKey((v) => !v)}
                     >
                       {showManualKey ? "hide" : "paste a key"}

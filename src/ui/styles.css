@@ -314,6 +314,12 @@ button.link.danger:hover:not(:disabled) {
   flex: 1;
 }
 
+/* Fixed width so the label change (paste a key ↔ hide) never resizes siblings. */
+.key-toggle {
+  width: 88px;
+  text-align: center;
+}
+
 /* ---------- mode toggle (segmented control) ---------- */
 
 .mode-toggle {
