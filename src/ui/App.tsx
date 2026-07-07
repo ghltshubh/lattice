@@ -270,6 +270,14 @@ export default function App() {
         <span className="tagline">
           documents → propositions → knowledge graph, on-device by default
         </span>
+        <a
+          className="coffee"
+          href="https://buymeacoffee.com/shubhankar"
+          target="_blank"
+          rel="noreferrer"
+        >
+          ☕ Buy me a coffee
+        </a>
       </header>
       <main>
         <aside className="panel input-panel">
