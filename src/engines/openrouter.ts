@@ -12,6 +12,28 @@ import { EXTRACTION_SCHEMA } from "./schema";
 import { parseExtraction } from "./validate";
 
 const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
+
+/**
+ * OpenAI-style strict structured outputs demand `additionalProperties: false`
+ * on every object; the shared §4 schema omits it (Prompt API and WebLLM don't
+ * need it). Derive a strict copy rather than forking the schema by hand.
+ */
+function strictify(schema: object): object {
+  const clone = structuredClone(schema) as Record<string, unknown>;
+  const walk = (node: Record<string, unknown>) => {
+    if (node.type === "object") {
+      node.additionalProperties = false;
+      const props = node.properties as Record<string, Record<string, unknown>> | undefined;
+      if (props) for (const value of Object.values(props)) walk(value);
+    } else if (node.type === "array" && node.items) {
+      walk(node.items as Record<string, unknown>);
+    }
+  };
+  walk(clone);
+  return clone;
+}
+
+const STRICT_EXTRACTION_SCHEMA = strictify(EXTRACTION_SCHEMA);
 const AUTH_URL = "https://openrouter.ai/auth";
 const KEY_EXCHANGE_URL = "https://openrouter.ai/api/v1/auth/keys";
 const VERIFIER_STORAGE = "lattice.orVerifier";
@@ -76,6 +98,8 @@ export class OpenRouterEngine implements ExtractionEngine {
   readonly id = "openrouter" as const;
   readonly model: string;
   private readonly key: string;
+  /** Some models reject json_schema — after one 400 we fall back to plain prompting. */
+  private schemaSupported = true;
 
   constructor(key: string, model: string = DEFAULT_OPENROUTER_MODEL) {
     this.key = key.trim();
@@ -91,6 +115,7 @@ export class OpenRouterEngine implements ExtractionEngine {
   }
 
   private async complete(messages: ChatMessage[], constrained = true): Promise<string> {
+    const useSchema = constrained && this.schemaSupported;
     const res = await fetch(ENDPOINT, {
       method: "POST",
       headers: {
@@ -102,16 +127,23 @@ export class OpenRouterEngine implements ExtractionEngine {
         model: this.model,
         messages,
         temperature: 0,
-        ...(constrained && {
+        ...(useSchema && {
           response_format: {
             type: "json_schema",
-            json_schema: { name: "extraction", strict: true, schema: EXTRACTION_SCHEMA },
+            json_schema: { name: "extraction", strict: true, schema: STRICT_EXTRACTION_SCHEMA },
           },
         }),
       }),
     });
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
+      // Model doesn't support structured outputs → retry unconstrained once;
+      // parseExtraction still validates everything downstream.
+      if (useSchema && res.status === 400) {
+        console.warn(`OpenRouter: ${this.model} rejected json_schema, retrying unconstrained`);
+        this.schemaSupported = false;
+        return this.complete(messages, constrained);
+      }
       if (res.status === 401) throw new Error("OpenRouter rejected the API key (401)");
       if (res.status === 402) throw new Error("OpenRouter: insufficient credits (402)");
       if (res.status === 429) throw new Error("OpenRouter: rate limited (429) — try again shortly");

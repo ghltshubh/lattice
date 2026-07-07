@@ -66,6 +66,7 @@ export default function App() {
   const [guardrail, setGuardrail] = useState<number | null>(null);
   const [graph, setGraph] = useState<KnowledgeGraph | null>(null);
   const [dropped, setDropped] = useState<number[]>([]);
+  const [dropError, setDropError] = useState<string | null>(null);
   const [selection, setSelection] = useState<Selection>(null);
   const [saved, setSaved] = useState<SavedGraphSummary[]>([]);
   const [exportFormat, setExportFormat] = useState<UIExportFormat>("portable-json");
@@ -165,6 +166,7 @@ export default function App() {
       });
       setGraph(result.graph);
       setDropped(result.droppedChunks);
+      setDropError(result.dropError ?? null);
       if (result.graph.meta.title) setTitle(result.graph.meta.title);
       setStatus(
         `Done — ${result.graph.nodes.length} nodes, ${result.graph.edges.length} edges from ${result.graph.meta.chunkCount} chunks.`,
@@ -217,6 +219,7 @@ export default function App() {
       setGraph(g);
       setSelection(null);
       setDropped([]);
+      setDropError(null);
       setTitle(g.meta.title ?? "");
       setStatus(`Loaded “${g.meta.title ?? "untitled"}”.`);
     }
@@ -361,8 +364,13 @@ export default function App() {
           )}
           {dropped.length > 0 && (
             <div className="banner warn">
-              Dropped {dropped.length} chunk{dropped.length === 1 ? "" : "s"} after repeated invalid
-              model output: {dropped.join(", ")}
+              Dropped {dropped.length} of the chunks
+              {dropped.length > 8 ? "" : ` (${dropped.join(", ")})`}.
+              {dropError && (
+                <div className="meta" style={{ marginTop: 6 }}>
+                  Last error: {dropError}
+                </div>
+              )}
             </div>
           )}
 

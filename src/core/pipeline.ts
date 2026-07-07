@@ -18,6 +18,8 @@ export interface PipelineCallbacks {
 export interface PipelineResult {
   graph: KnowledgeGraph;
   droppedChunks: number[];
+  /** last per-chunk failure — the diagnosis when chunks were dropped */
+  dropError?: string;
 }
 
 const PRIOR_ENTITY_CARRY = 20;
@@ -48,6 +50,7 @@ export async function runPipeline(
 
   const extractions: ChunkExtraction[] = [];
   const dropped: number[] = [];
+  let dropError: string | undefined;
   const priorEntities: string[] = [];
   for (const chunk of chunks) {
     try {
@@ -65,6 +68,7 @@ export async function runPipeline(
     } catch (err) {
       console.warn(`Dropping chunk ${chunk.index}:`, err);
       dropped.push(chunk.index);
+      dropError = err instanceof Error ? err.message : String(err);
     }
     onChunk?.(chunk.index + 1, chunks.length);
   }
@@ -95,5 +99,5 @@ export async function runPipeline(
     },
     { embedder },
   );
-  return { graph, droppedChunks: dropped };
+  return { graph, droppedChunks: dropped, dropError };
 }
