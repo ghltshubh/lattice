@@ -2,7 +2,7 @@
 
 > Working codename: **Lattice** (a client-side webapp that decomposes text/documents into atomic propositions and assembles a knowledge graph). Rename freely.
 
-A standalone, no-hosting single-page web application. All parsing, inference, graph assembly, and rendering run on the user's device. No server, no API keys, no data leaves the browser.
+A standalone, no-hosting single-page web application. All parsing, inference, graph assembly, and rendering run on the user's device. No server, no API keys, no data leaves the browser — in the default **Private (on-device)** mode. An explicit opt-in **High quality (cloud)** mode (§1a) sends chunk text to a hosted model using the *user's own* API key, browser-direct; there is still no Lattice backend, ever.
 
 ---
 
@@ -11,7 +11,7 @@ A standalone, no-hosting single-page web application. All parsing, inference, gr
 | Decision | Choice | Rationale |
 |---|---|---|
 | Deployment | Static SPA, no backend | Fully client-side; deploy as static files or open `index.html` |
-| Inference | **Dual-engine**: Prompt API (default) + WebLLM (opt-in) | Zero-wait start; opt-in quality upgrade with one-time download |
+| Inference | **Mode toggle (§1a)**: Private/on-device default (Prompt API → WebLLM) + opt-in BYOK cloud (OpenRouter) | Privacy by default, zero-wait start; quality is an explicit, informed upgrade |
 | Engine seam | Single `ExtractionEngine` interface | Prompt-API-only is a valid M1 subset; WebLLM slots in at M5 |
 | Input ceiling | Medium — up to ~10 pages (~7–8k tokens) | Keeps chunk counts and entity counts modest |
 | Atomic unit | Self-contained **proposition** (single claim, no pronouns) | Maps cleanly to (subject, predicate, object); avoids tag-cloud failure mode |
@@ -20,6 +20,15 @@ A standalone, no-hosting single-page web application. All parsing, inference, gr
 | Persistence | IndexedDB (`idb`) | Model cache + saved graphs, survives reloads |
 
 **Swappable without touching the plan:** Sigma.js ↔ react-force-graph (faster to prototype, weaker at large graphs); React ↔ vanilla (core is framework-agnostic either way).
+
+---
+
+## 1a. Mode toggle: Private vs High quality
+
+The UI exposes a two-position **mode** toggle, not raw engine ids. Names are chosen so the control itself states the tradeoff ("Local/Remote" describes plumbing; "Private/High quality" describes what you give up).
+
+- **Private (on-device)** — DEFAULT. No document text ever leaves the device. Auto-selects the engine: Prompt API when available, else WebLLM. Before the first WebLLM download the UI must state the storage cost explicitly — ≈0.4 GB (0.5B), ≈0.9 GB (1.5B), ≈1.8 GB (3B), all 4-bit, cached in browser storage after the one-time download; 3B additionally needs WebGPU with ~4 GB VRAM headroom — and require an explicit "Download model" confirmation. Check `navigator.storage.estimate()` first and warn when quota is tight. No bytes move without consent.
+- **High quality (cloud)** — explicit opt-in, BYOK (bring your own key). The user pastes an OpenRouter API key, stored in localStorage only. Requests go browser → OpenRouter directly; no Lattice server in the path. Switching into this mode shows a plain-language warning that document text will be sent to OpenRouter and its upstream model provider. Persist mode + key locally. Never default to it, never auto-switch into it (e.g., on a Private-mode failure).
 
 ---
 
@@ -101,7 +110,7 @@ export interface GraphEdge {
 export interface GraphMeta {
   title?: string;
   createdAt: string;
-  engine: "prompt-api" | "webllm";
+  engine: "prompt-api" | "webllm" | "openrouter";
   model: string;
   chunkCount: number;
   tokenEstimate: number;
@@ -239,7 +248,9 @@ export interface ExtractionEngine {
 
 **`WebLLMEngine`** — `CreateMLCEngine(model, { initProgressCallback })`; OpenAI-style call with `response_format: { type: "json_schema", ... }` (grammar-constrained via XGrammar, so parse failures are rare). Default opt-in model capped at **3B, 4-bit** to stay under the ~4GB-per-tab VRAM ceiling. Weights cache in IndexedDB after first download.
 
-The UI depends only on `ExtractionEngine`. That seam is what makes a Prompt-API-only first cut a one-line engine swap.
+**`OpenRouterEngine`** (High-quality mode, M7) — OpenAI-compatible `chat/completions` called browser-direct with `response_format: { type: "json_schema", ... }` (the same §4 schema) and the user's key in the `Authorization` header. Sensible default model + a picker. `isAvailable()` = key present (plus a cheap auth check on first use). Rate-limit and cost errors surface per chunk and drop-and-log like any other engine failure.
+
+The UI depends only on `ExtractionEngine`. That seam is what makes a Prompt-API-only first cut a one-line engine swap — and what lets the mode toggle map to engines without the pipeline knowing.
 
 ---
 
@@ -267,13 +278,17 @@ Cross-chunk merge (exact + embedding fuzzy via Transformers.js), edge dedupe, de
 Sigma.js render: node size by `mentions`, color by `type`, click node → highlight neighbors, click edge → provenance panel listing supporting propositions.
 **Accept:** interactive graph; edge provenance visible; layout readable at ~100 nodes.
 
-### M5 — WebLLM opt-in engine
-`WebLLMEngine` behind the same interface; model picker (0.5B / 1.5B / 3B); lazy download on first toggle with progress bar; cached thereafter; engine toggle in UI.
-**Accept:** flip to WebLLM → one-time download w/ progress → extraction quality visibly cleaner → reload uses cache, no re-download.
+### M5 — WebLLM + mode toggle
+`WebLLMEngine` behind the same interface; the §1a Private/High-quality mode toggle in the UI (High quality visible but disabled — "arrives at M7" — until then); model picker (0.5B / 1.5B / 3B); storage-cost consent screen (§1a sizes) before the first download, with progress bar; cached thereafter.
+**Accept:** on a machine without the Prompt API, Private mode still produces a real graph after one consented download; the consent screen shows sizes before any bytes move; reload uses the cache, no re-download.
 
 ### M6 — Persist & export
 Save/load graphs to IndexedDB; export JSON + GraphML; export canvas as PNG/SVG.
 **Accept:** save → reload page → restore graph; GraphML opens in Gephi.
+
+### M7 — High-quality cloud engine (BYOK)
+`OpenRouterEngine` (§8); key entry stored in localStorage; the §1a data-leaves-device warning on mode switch; model picker; mode + key persisted.
+**Accept:** with a valid key, extraction is visibly cleaner than 3B local; removing the key disables the mode; in Private mode devtools shows zero network calls to any LLM host.
 
 ---
 
@@ -301,6 +316,7 @@ Embedding model: `Xenova/all-MiniLM-L6-v2` (~30–90 MB, cached) or a `bge-small
 - **Embedding download** — small but nonzero (~30–90 MB) the first time resolution runs; lazy-load it, show a tiny progress note.
 - **Resolution threshold** — 0.83 cosine is a starting point; expose as a dev setting and tune on real docs. Over-merging is worse than under-merging for trust.
 - **Version drift** — validate every package version at build; Nano and WebLLM both move fast.
+- **Cloud-mode trust** — the BYOK key sits in localStorage (XSS surface): send it to OpenRouter and nowhere else, keep Private the default so a compromised page can't silently exfiltrate documents, and never auto-fall-back from Private to cloud.
 
 ---
 

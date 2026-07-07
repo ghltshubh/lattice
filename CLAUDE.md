@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Lattice is a fully client-side single-page web app that decomposes documents into atomic propositions (subject–predicate–object claims) and assembles them into an interactive knowledge graph. **Hard constraint: no backend, no API keys, no document data ever leaves the device.** All parsing, LLM inference, entity resolution, and rendering run in the browser. Never introduce a server, hosted-LLM API call, or telemetry.
+Lattice is a fully client-side single-page web app that decomposes documents into atomic propositions (subject–predicate–object claims) and assembles them into an interactive knowledge graph. **Hard constraints: no backend and no telemetry, ever.** The default **Private (on-device)** mode sends no document data off the device. The only permitted network inference is the explicit opt-in **High quality (cloud)** BYOK mode defined in BUILD_PLAN §1a (browser → OpenRouter with the user's own key) — never make it the default, never auto-switch into it, never route it through a server.
 
 `BUILD_PLAN.md` is the design source of truth (data contracts, pipeline stages, milestones M0–M6, acceptance criteria). The types contract in §3 is canonical and lives at `src/core/types.ts`.
 
@@ -22,7 +22,7 @@ bun is the package manager — not npm, despite what BUILD_PLAN.md implies.
 - `src/engines/` — `ExtractionEngine` implementations (Prompt API today; WebLLM lands at M5). The UI and pipeline depend only on the interface in `src/core/types.ts`; never hardwire a specific engine.
 - `src/ui/` — React components. Vite + React 19, Sigma.js for rendering.
 
-Milestone state: M0–M4 done plus persistence/export (M6). Remaining: M5 (WebLLM opt-in engine), M6 PNG/SVG canvas export.
+Milestone state: M0–M4 done plus persistence/export (M6). Remaining: M5 (WebLLM + Private/High-quality mode toggle), M6 PNG/SVG canvas export, M7 (BYOK OpenRouter engine).
 
 ## Gotchas
 
