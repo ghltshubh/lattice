@@ -441,6 +441,9 @@ export default function App() {
               <datalist id="or-model-suggestions">
                 <option value="openrouter/auto" label="Auto — OpenRouter picks per request" />
                 <option value={DEFAULT_OPENROUTER_MODEL} label="cheap, consistent default" />
+                <option value="meta-llama/llama-3.3-70b-instruct:free" label="free — 70B" />
+                <option value="openai/gpt-oss-120b:free" label="free — 120B" />
+                <option value="nousresearch/hermes-3-llama-3.1-405b:free" label="free — 405B" />
               </datalist>
             </>
           )}
