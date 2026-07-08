@@ -98,11 +98,11 @@ export async function completeOpenRouterAuth(): Promise<string | null> {
  */
 export const FREE_AUTO = "free/auto";
 
+// NB: OpenRouter allows at most 3 items in the `models` fallback array.
 export const FREE_MODELS = [
   "meta-llama/llama-3.3-70b-instruct:free",
   "openai/gpt-oss-120b:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
-  "nousresearch/hermes-3-llama-3.1-405b:free",
 ];
 
 /** Editable in the UI — any OpenRouter model id works. */
@@ -175,8 +175,10 @@ export class OpenRouterEngine implements ExtractionEngine {
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
       // Model doesn't support structured outputs → retry unconstrained once;
-      // parseExtraction still validates everything downstream.
-      if (useSchema && res.status === 400) {
+      // parseExtraction still validates everything downstream. Only treat the
+      // 400 as a schema rejection when the message says so — other 400s
+      // (bad request shape, invalid model id) must surface as themselves.
+      if (useSchema && res.status === 400 && /schema|response_format|structured/i.test(detail)) {
         console.warn(`OpenRouter: ${this.model} rejected json_schema, retrying unconstrained`);
         this.schemaSupported = false;
         return this.complete(messages, constrained);
