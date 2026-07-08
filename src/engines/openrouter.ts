@@ -91,8 +91,8 @@ export async function completeOpenRouterAuth(): Promise<string | null> {
   return data.key ?? null;
 }
 
-/** Editable in the UI — any OpenRouter model id works; this is just a sane cheap default. */
-export const DEFAULT_OPENROUTER_MODEL = "openai/gpt-4o-mini";
+/** Editable in the UI — any OpenRouter model id works. Default is free: strong 70B, zero cost, rate-limited. */
+export const DEFAULT_OPENROUTER_MODEL = "meta-llama/llama-3.3-70b-instruct:free";
 
 interface ChatMessage {
   role: "system" | "user" | "assistant";

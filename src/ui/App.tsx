@@ -54,9 +54,11 @@ export default function App() {
   const [freeGB, setFreeGB] = useState<number | null>(null);
   const [needsConsent, setNeedsConsent] = useState(false);
   const [orKey, setOrKey] = useState(() => localStorage.getItem("lattice.openrouterKey") ?? "");
-  const [orModel, setOrModel] = useState(
-    () => localStorage.getItem("lattice.openrouterModel") ?? DEFAULT_OPENROUTER_MODEL,
-  );
+  const [orModel, setOrModel] = useState(() => {
+    const stored = localStorage.getItem("lattice.openrouterModel");
+    // Migrate the old paid default — free is the default now.
+    return !stored || stored === "openai/gpt-4o-mini" ? DEFAULT_OPENROUTER_MODEL : stored;
+  });
   const sigmaRef = useRef<Sigma | null>(null);
   const [availability, setAvailability] = useState<Record<string, Availability>>({});
   const [status, setStatus] = useState("");
@@ -439,11 +441,11 @@ export default function App() {
                 onChange={(e) => setOrModel(e.target.value)}
               />
               <datalist id="or-model-suggestions">
-                <option value="openrouter/auto" label="Auto — OpenRouter picks per request" />
-                <option value={DEFAULT_OPENROUTER_MODEL} label="cheap, consistent default" />
-                <option value="meta-llama/llama-3.3-70b-instruct:free" label="free — 70B" />
+                <option value={DEFAULT_OPENROUTER_MODEL} label="free — 70B (default)" />
                 <option value="openai/gpt-oss-120b:free" label="free — 120B" />
                 <option value="nousresearch/hermes-3-llama-3.1-405b:free" label="free — 405B" />
+                <option value="openrouter/auto" label="paid — auto-picked per request" />
+                <option value="openai/gpt-4o-mini" label="paid — cheap, consistent" />
               </datalist>
             </>
           )}
