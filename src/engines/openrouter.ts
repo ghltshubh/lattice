@@ -91,8 +91,26 @@ export async function completeOpenRouterAuth(): Promise<string | null> {
   return data.key ?? null;
 }
 
-/** Editable in the UI — any OpenRouter model id works. Default is free: strong 70B, zero cost, rate-limited. */
-export const DEFAULT_OPENROUTER_MODEL = "meta-llama/llama-3.3-70b-instruct:free";
+/**
+ * Sentinel (not a real OpenRouter id): send the whole FREE_MODELS list as a
+ * `models` fallback chain — OpenRouter's router tries each in order when one
+ * is overloaded, unavailable, or erroring. Zero cost either way.
+ */
+export const FREE_AUTO = "free/auto";
+
+export const FREE_MODELS = [
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "openai/gpt-oss-120b:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "nousresearch/hermes-3-llama-3.1-405b:free",
+];
+
+/** Editable in the UI — any OpenRouter model id works. */
+export const DEFAULT_OPENROUTER_MODEL = FREE_AUTO;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
 interface ChatMessage {
   role: "system" | "user" | "assistant";
@@ -121,25 +139,39 @@ export class OpenRouterEngine implements ExtractionEngine {
 
   private async complete(messages: ChatMessage[], constrained = true): Promise<string> {
     const useSchema = constrained && this.schemaSupported;
-    const res = await fetch(ENDPOINT, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.key}`,
-        "Content-Type": "application/json",
-        "X-Title": "Lattice",
-      },
-      body: JSON.stringify({
-        model: this.model,
-        messages,
-        temperature: 0,
-        ...(useSchema && {
-          response_format: {
-            type: "json_schema",
-            json_schema: { name: "extraction", strict: true, schema: STRICT_EXTRACTION_SCHEMA },
-          },
+    let res: Response;
+    for (let rateRetry = 0; ; rateRetry++) {
+      res = await fetch(ENDPOINT, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.key}`,
+          "Content-Type": "application/json",
+          "X-Title": "Lattice",
+        },
+        body: JSON.stringify({
+          // free/auto → server-side fallback chain across the free models
+          ...(this.model === FREE_AUTO ? { models: FREE_MODELS } : { model: this.model }),
+          messages,
+          temperature: 0,
+          ...(useSchema && {
+            response_format: {
+              type: "json_schema",
+              json_schema: { name: "extraction", strict: true, schema: STRICT_EXTRACTION_SCHEMA },
+            },
+          }),
         }),
-      }),
-    });
+      });
+      // Rate limits are expected on the free tier, not exceptional — wait and
+      // retry instead of losing the chunk.
+      if (res.status === 429 && rateRetry < 3) {
+        const retryAfter = Number(res.headers.get("Retry-After"));
+        const waitS = Math.min(retryAfter > 0 ? retryAfter : 15, 65);
+        console.warn(`OpenRouter rate limited — waiting ${waitS}s (retry ${rateRetry + 1}/3)`);
+        await sleep(waitS * 1000);
+        continue;
+      }
+      break;
+    }
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
       // Model doesn't support structured outputs → retry unconstrained once;
@@ -152,10 +184,14 @@ export class OpenRouterEngine implements ExtractionEngine {
       if (res.status === 401) throw new FatalEngineError("OpenRouter rejected the API key (401)");
       if (res.status === 402) {
         throw new FatalEngineError(
-          "OpenRouter: insufficient credits (402) — top up or switch to a :free model",
+          "OpenRouter: insufficient credits (402) — top up, or check that your balance isn't negative",
         );
       }
-      if (res.status === 429) throw new Error("OpenRouter: rate limited (429) — try again shortly");
+      if (res.status === 429) {
+        throw new FatalEngineError(
+          "OpenRouter: still rate limited after waiting — the free-tier daily cap may be exhausted",
+        );
+      }
       throw new Error(`OpenRouter error ${res.status}: ${detail.slice(0, 160)}`);
     }
     const data = (await res.json()) as {
