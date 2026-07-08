@@ -13,6 +13,11 @@ import { parseExtraction } from "./validate";
 
 const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 
+/** An error no retry or later chunk can recover from — the pipeline aborts the run. */
+export class FatalEngineError extends Error {
+  readonly fatal = true;
+}
+
 /**
  * OpenAI-style strict structured outputs demand `additionalProperties: false`
  * on every object; the shared §4 schema omits it (Prompt API and WebLLM don't
@@ -144,8 +149,12 @@ export class OpenRouterEngine implements ExtractionEngine {
         this.schemaSupported = false;
         return this.complete(messages, constrained);
       }
-      if (res.status === 401) throw new Error("OpenRouter rejected the API key (401)");
-      if (res.status === 402) throw new Error("OpenRouter: insufficient credits (402)");
+      if (res.status === 401) throw new FatalEngineError("OpenRouter rejected the API key (401)");
+      if (res.status === 402) {
+        throw new FatalEngineError(
+          "OpenRouter: insufficient credits (402) — top up or switch to a :free model",
+        );
+      }
       if (res.status === 429) throw new Error("OpenRouter: rate limited (429) — try again shortly");
       throw new Error(`OpenRouter error ${res.status}: ${detail.slice(0, 160)}`);
     }

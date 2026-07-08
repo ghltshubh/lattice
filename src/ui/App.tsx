@@ -433,10 +433,15 @@ export default function App() {
               <label htmlFor="or-model">Model (any OpenRouter id)</label>
               <input
                 id="or-model"
+                list="or-model-suggestions"
                 value={orModel}
                 placeholder={DEFAULT_OPENROUTER_MODEL}
                 onChange={(e) => setOrModel(e.target.value)}
               />
+              <datalist id="or-model-suggestions">
+                <option value="openrouter/auto" label="Auto — OpenRouter picks per request" />
+                <option value={DEFAULT_OPENROUTER_MODEL} label="cheap, consistent default" />
+              </datalist>
             </>
           )}
 

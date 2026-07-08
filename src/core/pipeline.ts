@@ -69,6 +69,12 @@ export async function runPipeline(
       console.warn(`Dropping chunk ${chunk.index}:`, err);
       dropped.push(chunk.index);
       dropError = err instanceof Error ? err.message : String(err);
+      // A fatal engine error (bad key, no credits) dooms every later chunk —
+      // stop instead of grinding through the tail with useless retries.
+      if ((err as { fatal?: boolean }).fatal) {
+        for (let i = chunk.index + 1; i < chunks.length; i++) dropped.push(i);
+        break;
+      }
     }
     onChunk?.(chunk.index + 1, chunks.length);
   }
